@@ -23,8 +23,9 @@ import {
 } from "lucide-react"
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts"
 import Link from "next/link"
-import { useFinVoiceData } from "@/hooks/useFinVoiceData"
-import { initializeSampleData } from "@/lib/localStorage"
+import { useFinVoiceData } from "@/hooks/useAuthFinVoiceData"
+import { useSession } from "next-auth/react"
+// import { initializeSampleData } from "@/lib/localStorage"
 // import { FinancialCoachingAgent, getFinancialHealthScore } from "@/lib/financialCoaching"
 
 const quickActions = [
@@ -39,10 +40,19 @@ export default function DashboardOverview() {
   const [voiceInput, setVoiceInput] = useState("")
   const recognitionRef = useRef<any>(null)
 
-  const { expenses, budgets, goals, totalBalance, addExpense } = useFinVoiceData()
+  const { data: session } = useSession()
+  const { expenses, budgets, goals, totalBalance, addExpense, isLoading, error } = useFinVoiceData()
+
+  const getUserFirstName = () => {
+    const name = session?.user?.name
+    if (name) {
+      return name.split(' ')[0]
+    }
+    return 'User'
+  }
 
   useEffect(() => {
-    initializeSampleData()
+    // Remove sample data initialization - now using real database data
 
     if (typeof window !== "undefined" && "webkitSpeechRecognition" in window) {
       const SpeechRecognition = (window as any).webkitSpeechRecognition
@@ -157,11 +167,39 @@ export default function DashboardOverview() {
 
   const savingsRate = totalBalance.income > 0 ? Math.round((totalBalance.balance / totalBalance.income) * 100) : 0
 
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-in fade-in-0 duration-700">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading your financial data...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6 animate-in fade-in-0 duration-700">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-red-600 font-medium">Error loading data</p>
+            <p className="text-muted-foreground mt-2">{error}</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in-0 duration-700">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-gradient-to-r from-primary/5 to-accent/5 p-6 rounded-xl border">
         <div className="animate-in slide-in-from-left-4 duration-500">
-          <h1 className="text-3xl font-bold font-serif text-foreground">Good morning, John!</h1>
+          <h1 className="text-3xl font-bold font-serif text-foreground">
+            Good morning, {getUserFirstName()}!
+          </h1>
           <p className="text-muted-foreground mt-1">Here's your financial overview for today</p>
         </div>
         <div className="mt-4 sm:mt-0 animate-in slide-in-from-right-4 duration-500 delay-200">

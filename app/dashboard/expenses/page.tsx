@@ -55,7 +55,7 @@ import {
 import { VoiceRecorder } from "@/components/voice-recorder"
 import { ExpenseForm } from "@/components/expense-form"
 import { VoiceNotes } from "@/components/voice-notes"
-import { useFinVoiceData } from "@/hooks/useFinVoiceData"
+import { useFinVoiceData } from "@/hooks/useAuthFinVoiceData"
 
 const categories = [
   { name: "Food & Dining", icon: Coffee, color: "bg-orange-500" },
@@ -88,7 +88,7 @@ export default function ExpensesPage() {
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
 
-  const { expenses, addExpense, updateExpense, deleteExpense } = useFinVoiceData()
+  const { expenses, addExpense, updateExpense, deleteExpense, isLoading, error } = useFinVoiceData()
 
   const handleVoiceTranscription = (text: string, amount?: number, category?: string) => {
     const newExpense = {
@@ -184,6 +184,32 @@ export default function ExpensesPage() {
       amount: monthExpenses.reduce((sum, e) => sum + e.amount, 0),
     }
   })
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-in fade-in-0 duration-700">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading your expenses...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6 animate-in fade-in-0 duration-700">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-red-600 font-medium">Error loading expenses</p>
+            <p className="text-muted-foreground mt-2">{error}</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in-0 duration-700">
@@ -479,7 +505,7 @@ export default function ExpensesPage() {
                       cy="50%"
                       outerRadius={80}
                       dataKey="value"
-                      label={({ name, value }) => `${name}: ₹${value.toLocaleString("en-IN")}`}
+                      label={({ name, value }) => `${name}: ₹${Number(value).toLocaleString("en-IN")}`}
                     >
                       {categoryData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />

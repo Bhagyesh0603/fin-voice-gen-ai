@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Download, TrendingUp, TrendingDown, PieChart, BarChart3, Target, Wallet, IndianRupee } from "lucide-react"
-import { dataManager, initializeSampleData } from "@/lib/localStorage"
+import { useFinVoiceData } from "@/hooks/useAuthFinVoiceData"
 import {
   LineChart,
   Line,
@@ -24,24 +24,48 @@ import {
 const COLORS = ["#0891b2", "#ec4899", "#f59e0b", "#10b981", "#8b5cf6"]
 
 export default function ReportsPage() {
-  const [reportData, setReportData] = useState<any>(null)
   const [selectedPeriod, setSelectedPeriod] = useState("monthly")
   const [isGenerating, setIsGenerating] = useState(false)
 
-  useEffect(() => {
-    initializeSampleData()
-    loadReportData()
+  const { expenses: userExpenses, budgets: userBudgets, goals: userGoals, totalBalance: userTotalBalance, isLoading, error } = useFinVoiceData()
 
-    // Subscribe to data changes for real-time updates
-    const handleDataChange = () => loadReportData()
-    dataManager.subscribe("data_changed", handleDataChange)
+  // Generate report data from authenticated user data
+  const reportData = {
+    totalExpenses: userExpenses.reduce((sum, exp) => sum + exp.amount, 0),
+    totalBudgets: userBudgets.reduce((sum, budget) => sum + budget.amount, 0),
+    totalGoals: userGoals.length,
+    completedGoals: userGoals.filter(goal => goal.currentAmount >= goal.targetAmount).length,
+    totalBalance: userTotalBalance,
+    expensesByCategory: userExpenses.reduce((acc, exp) => {
+      acc[exp.category] = (acc[exp.category] || 0) + exp.amount
+      return acc
+    }, {} as Record<string, number>),
+    expenses: userExpenses,
+    budgets: userBudgets,
+    goals: userGoals,
+    investments: [], // Empty for now
+    monthlyExpenses: generateMonthlyExpenses(userExpenses),
+    categoryExpenses: generateCategoryExpenses(userExpenses)
+  }
 
-    return () => dataManager.unsubscribe("data_changed", handleDataChange)
-  }, [])
+  function generateMonthlyExpenses(expenses: any[]) {
+    // Generate monthly data from expenses
+    const monthlyData = expenses.reduce((acc, exp) => {
+      const month = new Date(exp.date).toLocaleString('en-US', { month: 'short' })
+      acc[month] = (acc[month] || 0) + exp.amount
+      return acc
+    }, {})
+    
+    return Object.entries(monthlyData).map(([month, amount]) => ({ month, amount }))
+  }
 
-  const loadReportData = () => {
-    const data = dataManager.getReportData()
-    setReportData(data)
+  function generateCategoryExpenses(expenses: any[]) {
+    const categoryData = expenses.reduce((acc, exp) => {
+      acc[exp.category] = (acc[exp.category] || 0) + exp.amount
+      return acc
+    }, {})
+    
+    return Object.entries(categoryData).map(([category, amount]) => ({ category, amount }))
   }
 
   const generatePDFReport = async () => {
@@ -72,64 +96,87 @@ export default function ReportsPage() {
 
     const { expenses, budgets, goals, investments, totalBalance } = reportData
 
-    return `
-FINVOICE FINANCIAL REPORT
-Generated on: ${new Date().toLocaleDateString("en-IN")}
-========================================
+    const expenseBreakdown = expenses
+      .map(
+        (expense: any) =>
+          expense.date + " | " + expense.category + " | ₹" + expense.amount.toLocaleString("en-IN") + " | " + expense.description
+      )
+      .join("\n")
 
-FINANCIAL SUMMARY
------------------
-Total Income: ₹${totalBalance.income.toLocaleString("en-IN")}
-Total Expenses: ₹${totalBalance.expenses.toLocaleString("en-IN")}
-Net Balance: ₹${totalBalance.balance.toLocaleString("en-IN")}
-Savings Rate: ${((totalBalance.balance / totalBalance.income) * 100).toFixed(1)}%
+    const budgetAnalysis = budgets
+      .map((budget: any) => {
+        const percentage = (budget.spent / budget.amount) * 100
+        const status = percentage > 100 ? "OVER BUDGET" : percentage > 80 ? "WARNING" : "ON TRACK"
+        return budget.category + ": ₹" + budget.spent.toLocaleString("en-IN") + " / ₹" + budget.amount.toLocaleString("en-IN") + " (" + percentage.toFixed(1) + "%) - " + status
+      })
+      .join("\n")
 
-EXPENSE BREAKDOWN
------------------
-${expenses
-  .map(
-    (expense: any) =>
-      `${expense.date} | ${expense.category} | ₹${expense.amount.toLocaleString("en-IN")} | ${expense.description}`,
-  )
-  .join("\n")}
+    const goalsProgress = goals
+      .map((goal: any) => {
+        const percentage = (goal.currentAmount / goal.targetAmount) * 100
+        return goal.title + ": ₹" + goal.currentAmount.toLocaleString("en-IN") + " / ₹" + goal.targetAmount.toLocaleString("en-IN") + " (" + percentage.toFixed(1) + "%)"
+      })
+      .join("\n")
 
-BUDGET ANALYSIS
----------------
-${budgets
-  .map((budget: any) => {
-    const percentage = (budget.spent / budget.amount) * 100
-    const status = percentage > 100 ? "OVER BUDGET" : percentage > 80 ? "WARNING" : "ON TRACK"
-    return `${budget.category}: ₹${budget.spent.toLocaleString("en-IN")} / ₹${budget.amount.toLocaleString("en-IN")} (${percentage.toFixed(1)}%) - ${status}`
-  })
-  .join("\n")}
+    const investmentPortfolio = investments
+      .map(
+        (investment: any) =>
+          investment.name + ": ₹" + investment.currentValue.toLocaleString("en-IN") + " (" + (investment.returns > 0 ? "+" : "") + investment.returns.toFixed(2) + "%)"
+      )
+      .join("\n")
 
-GOALS PROGRESS
---------------
-${goals
-  .map((goal: any) => {
-    const percentage = (goal.currentAmount / goal.targetAmount) * 100
-    return `${goal.title}: ₹${goal.currentAmount.toLocaleString("en-IN")} / ₹${goal.targetAmount.toLocaleString("en-IN")} (${percentage.toFixed(1)}%)`
-  })
-  .join("\n")}
+    const categoryBreakdown = Object.entries(reportData.expensesByCategory)
+      .map(([category, amount]) => category + ": ₹" + Number(amount).toLocaleString("en-IN"))
+      .join("\n")
 
-INVESTMENT PORTFOLIO
---------------------
-${investments
-  .map(
-    (investment: any) =>
-      `${investment.name}: ₹${investment.currentValue.toLocaleString("en-IN")} (${investment.returns > 0 ? "+" : ""}${investment.returns.toFixed(2)}%)`,
-  )
-  .join("\n")}
-
-RECOMMENDATIONS
----------------
-• Consider increasing savings rate to 30% of income
-• Review overspent budget categories
-• Diversify investment portfolio
-• Set up automatic transfers for goal achievement
-
-Report generated by FinVoice AI-Powered Financial Assistant
-    `.trim()
+    return [
+      "FINVOICE FINANCIAL REPORT",
+      "Generated on: " + new Date().toLocaleDateString("en-IN"),
+      "========================================",
+      "",
+      "FINANCIAL SUMMARY",
+      "-----------------",
+      "Total Income: ₹" + totalBalance.income.toLocaleString("en-IN"),
+      "Total Expenses: ₹" + totalBalance.expenses.toLocaleString("en-IN"),
+      "Net Balance: ₹" + totalBalance.balance.toLocaleString("en-IN"),
+      "Savings Rate: " + ((totalBalance.balance / totalBalance.income) * 100).toFixed(1) + "%",
+      "",
+      "BUDGET OVERVIEW",
+      "---------------",
+      "Total Budgets: " + reportData.totalBudgets,
+      "Number of Goals: " + reportData.totalGoals,
+      "Completed Goals: " + reportData.completedGoals,
+      "",
+      "CATEGORY BREAKDOWN",
+      "------------------",
+      categoryBreakdown,
+      "",
+      "EXPENSE BREAKDOWN",
+      "-----------------",
+      expenseBreakdown,
+      "",
+      "BUDGET ANALYSIS",
+      "---------------",
+      budgetAnalysis,
+      "",
+      "GOALS PROGRESS",
+      "--------------",
+      goalsProgress,
+      "",
+      "INVESTMENT PORTFOLIO",
+      "--------------------",
+      investmentPortfolio,
+      "",
+      "RECOMMENDATIONS",
+      "---------------",
+      "• Consider increasing savings rate to 30% of income",
+      "• Review overspent budget categories",
+      "• Diversify investment portfolio",
+      "• Set up automatic transfers for goal achievement",
+      "",
+      "========================================",
+      "Report generated by FinVoice AI-Powered Financial Assistant"
+    ].join("\n")
   }
 
   if (!reportData) {
@@ -279,7 +326,7 @@ Report generated by FinVoice AI-Powered Financial Assistant
                       outerRadius={100}
                       fill="#8884d8"
                       dataKey="amount"
-                      label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
+                      label={({ category, percent }) => `${category} ${(Number(percent) * 100).toFixed(0)}%`}
                     >
                       {categoryExpenses.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

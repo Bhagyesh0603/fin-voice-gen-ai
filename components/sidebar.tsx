@@ -1,7 +1,7 @@
 "use client"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Wallet,
   LayoutDashboard,
@@ -21,7 +21,8 @@ import {
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState, useEffect } from "react"
-import { dataManager } from "@/lib/localStorage"
+import { useSession, signOut } from "next-auth/react"
+import { useFinVoiceData } from "@/hooks/useAuthFinVoiceData"
 
 const navigationItems = [
   {
@@ -96,19 +97,22 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname()
-  const [totalBalance, setTotalBalance] = useState(0)
+  const { data: session } = useSession()
+  const { totalBalance } = useFinVoiceData()
 
-  useEffect(() => {
-    const updateBalance = () => {
-      const balance = dataManager.getTotalBalance()
-      setTotalBalance(balance.balance)
-    }
+  const handleSignOut = async () => {
+    await signOut({ callbackUrl: "/login" })
+  }
 
-    updateBalance()
-    dataManager.subscribe("data_changed", updateBalance)
-
-    return () => dataManager.unsubscribe("data_changed", updateBalance)
-  }, [])
+  const getUserInitials = (name?: string | null) => {
+    if (!name) return "U"
+    return name
+      .split(" ")
+      .map(n => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
+  }
 
   return (
     <>
@@ -142,11 +146,20 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           <div className="p-6 border-b">
             <div className="flex items-center space-x-3">
               <Avatar className="w-12 h-12">
-                <AvatarFallback className="bg-primary text-primary-foreground text-lg">JD</AvatarFallback>
+                {session?.user?.image && (
+                  <AvatarImage src={session.user.image} alt={session.user.name || "User"} />
+                )}
+                <AvatarFallback className="bg-primary text-primary-foreground text-lg">
+                  {getUserInitials(session?.user?.name)}
+                </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-foreground truncate">John Doe</p>
-                <p className="text-sm text-muted-foreground truncate">john@example.com</p>
+                <p className="font-semibold text-foreground truncate">
+                  {session?.user?.name || "FinVoice User"}
+                </p>
+                <p className="text-sm text-muted-foreground truncate">
+                  {session?.user?.email || "user@example.com"}
+                </p>
               </div>
             </div>
             <div className="mt-4 p-3 bg-primary/5 rounded-lg">
@@ -157,7 +170,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   Live
                 </Badge>
               </div>
-              <p className="text-2xl font-bold text-primary mt-1">₹{totalBalance.toLocaleString("en-IN")}</p>
+              <p className="text-2xl font-bold text-primary mt-1">
+                ₹{totalBalance.balance.toLocaleString("en-IN")}
+              </p>
             </div>
           </div>
 
@@ -207,7 +222,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 Settings
               </Button>
             </Link>
-            <Button variant="ghost" className="w-full justify-start text-red-600 hover:text-red-700" size="sm">
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start text-red-600 hover:text-red-700" 
+              size="sm"
+              onClick={handleSignOut}
+            >
               <LogOut className="w-4 h-4 mr-3" />
               Sign Out
             </Button>

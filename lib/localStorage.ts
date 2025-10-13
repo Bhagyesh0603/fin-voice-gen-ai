@@ -28,8 +28,11 @@ export interface Budget {
 export interface Goal {
   id: string
   title: string
+  name?: string // Optional, defaults to title
+  description?: string
   targetAmount: number
   currentAmount: number
+  monthlyContribution?: number
   deadline: string
   category: string
   createdAt: string
@@ -173,6 +176,21 @@ class FinVoiceDataManager {
     budgets.push(newBudget)
     this.setData("finvoice_budgets", budgets)
     return newBudget
+  }
+
+  updateBudget(id: string, updates: Partial<Budget>): void {
+    const budgets = this.getBudgets()
+    const index = budgets.findIndex((b) => b.id === id)
+    if (index !== -1) {
+      budgets[index] = { ...budgets[index], ...updates }
+      this.setData("finvoice_budgets", budgets)
+    }
+  }
+
+  deleteBudget(id: string): void {
+    const budgets = this.getBudgets()
+    const filtered = budgets.filter((b) => b.id !== id)
+    this.setData("finvoice_budgets", filtered)
   }
 
   private updateBudgetSpending(category: string, amount: number): void {

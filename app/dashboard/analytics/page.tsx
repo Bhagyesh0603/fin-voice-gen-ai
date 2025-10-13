@@ -38,7 +38,7 @@ import {
   Calendar,
   Users,
 } from "lucide-react"
-import { useFinVoiceData } from "@/hooks/useFinVoiceData"
+import { useFinVoiceData } from "@/hooks/useAuthFinVoiceData"
 import { FinancialCoachingAgent, getFinancialHealthScore } from "@/lib/financialCoaching"
 
 const monthlyData = [
@@ -89,7 +89,7 @@ export default function AnalyticsPage() {
   const [healthScore, setHealthScore] = useState(0)
   const [coachingAgent, setCoachingAgent] = useState<FinancialCoachingAgent | null>(null)
 
-  const { expenses, budgets, goals, totalBalance } = useFinVoiceData()
+  const { expenses, budgets, goals, totalBalance, isLoading, error } = useFinVoiceData()
 
   useEffect(() => {
     const financialData = {
@@ -113,7 +113,7 @@ export default function AnalyticsPage() {
       })),
       goals: goals.map((g) => ({
         id: g.id,
-        name: g.name,
+        name: g.name || "Untitled Goal",
         targetAmount: g.targetAmount,
         currentAmount: g.currentAmount,
         deadline: new Date(g.deadline),
@@ -438,7 +438,7 @@ export default function AnalyticsPage() {
                       cy="50%"
                       outerRadius={80}
                       dataKey="value"
-                      label={({ name, value }) => `${name}: ₹${value.toLocaleString()}`}
+                      label={({ name, value }) => `${name}: ₹${Number(value).toLocaleString()}`}
                     >
                       {incomeSourcesData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />

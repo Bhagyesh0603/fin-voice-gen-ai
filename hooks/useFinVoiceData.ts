@@ -54,6 +54,8 @@ export function useFinVoiceData() {
     updateExpense: (id: string, updates: Partial<Expense>) => dataManager.updateExpense(id, updates),
     deleteExpense: (id: string) => dataManager.deleteExpense(id),
     addBudget: (budget: Omit<Budget, "id" | "createdAt" | "spent">) => dataManager.addBudget(budget),
+    updateBudget: (id: string, updates: Partial<Budget>) => dataManager.updateBudget(id, updates),
+    deleteBudget: (id: string) => dataManager.deleteBudget(id),
     addGoal: (goal: Omit<Goal, "id" | "createdAt">) => dataManager.addGoal(goal),
     updateGoal: (id: string, updates: Partial<Goal>) => dataManager.updateGoal(id, updates),
     deleteGoal: (id: string) => dataManager.deleteGoal(id),

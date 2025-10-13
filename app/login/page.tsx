@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
+import { signIn, getSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -19,27 +20,51 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [rememberMe, setRememberMe] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
   const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError("")
 
-    // Simulate login process
-    setTimeout(() => {
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        isRegister: "false",
+        redirect: false,
+      })
+
+      if (result?.error) {
+        setError(result.error)
+      } else {
+        // Get session to verify login
+        const session = await getSession()
+        if (session) {
+          router.push("/dashboard")
+        }
+      }
+    } catch (error) {
+      setError("An unexpected error occurred")
+    } finally {
       setIsLoading(false)
-      router.push("/dashboard")
-    }, 1500)
+    }
   }
 
-  const handleGoogleLogin = () => {
-    // Google OAuth login would be implemented here
-    console.log("Google login clicked")
+  const handleGoogleLogin = async () => {
+    setIsLoading(true)
+    try {
+      await signIn("google", { callbackUrl: "/dashboard" })
+    } catch (error) {
+      setError("Google login failed")
+      setIsLoading(false)
+    }
   }
 
   const handleAppleLogin = () => {
     // Apple OAuth login would be implemented here
-    console.log("Apple login clicked")
+    console.log("Apple login clicked - not implemented yet")
   }
 
   return (
@@ -114,6 +139,12 @@ export default function LoginPage() {
 
             {/* Login Form */}
             <form onSubmit={handleLogin} className="space-y-4">
+              {error && (
+                <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+                  {error}
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-medium">
                   Email Address

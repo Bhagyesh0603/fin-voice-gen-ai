@@ -49,7 +49,7 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts"
-import { useFinVoiceData } from "@/hooks/useFinVoiceData"
+import { useFinVoiceData } from "@/hooks/useAuthFinVoiceData"
 
 const budgetCategoryOptions = [
   { name: "Food & Dining", icon: Coffee, color: "bg-orange-500" },
@@ -69,7 +69,7 @@ export default function BudgetPage() {
   const [editingBudget, setEditingBudget] = useState<any>(null)
   const [newBudget, setNewBudget] = useState({ category: "", amount: "" })
 
-  const { budgets, expenses, addBudget, updateBudget, deleteBudget } = useFinVoiceData()
+  const { budgets, expenses, addBudget, updateBudget, deleteBudget, isLoading, error } = useFinVoiceData()
 
   const budgetData = budgets.map((budget) => {
     const categoryExpenses = expenses.filter((e) => e.category === budget.category)
@@ -158,6 +158,32 @@ export default function BudgetPage() {
     }
   })
 
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-in fade-in-0 duration-700">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading your budgets...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6 animate-in fade-in-0 duration-700">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-red-600 font-medium">Error loading budgets</p>
+            <p className="text-muted-foreground mt-2">{error}</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in-0 duration-700">
       {/* Header */}
@@ -177,7 +203,7 @@ export default function BudgetPage() {
           }}
         >
           <DialogTrigger asChild>
-            <Button className="bg-gradient-to-r from-cyan-500 to-pink-500 hover:from-cyan-600 hover:to-pink-600 transition-all duration-300 transform hover:scale-105 animate-in slide-in-from-right-4 duration-500">
+            <Button className="bg-gradient-to-r from-cyan-500 to-pink-500 hover:from-cyan-600 hover:to-pink-600 transition-all transform hover:scale-105 animate-in slide-in-from-right-4 duration-500">
               <Plus className="w-4 h-4 mr-2" />
               Add Budget
             </Button>
@@ -404,7 +430,7 @@ export default function BudgetPage() {
                       cy="50%"
                       outerRadius={80}
                       dataKey="value"
-                      label={({ name, value }) => `${name}: ₹${value.toLocaleString("en-IN")}`}
+                      label={({ name, value }) => `${name}: ₹${Number(value).toLocaleString("en-IN")}`}
                     >
                       {pieData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />

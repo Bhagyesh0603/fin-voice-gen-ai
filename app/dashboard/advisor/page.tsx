@@ -39,6 +39,7 @@ import {
   Bot,
   User,
 } from "lucide-react"
+import { useFinVoiceData } from "@/hooks/useAuthFinVoiceData"
 import { format } from "date-fns"
 import { dataManager } from "@/lib/localStorage"
 
@@ -125,6 +126,8 @@ export default function AIAdvisorPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const recognitionRef = useRef<any>(null)
+
+  const { expenses, budgets, goals, totalBalance, isLoading } = useFinVoiceData()
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -419,7 +422,7 @@ export default function AIAdvisorPage() {
                               {message.metadata && (
                                 <div className="flex items-center space-x-2 mt-2 pt-2 border-t border-border">
                                   <Badge variant="secondary" className="text-xs">
-                                    {(message.metadata.confidence * 100).toFixed(0)}% confident
+                                    {((message.metadata?.confidence || 0) * 100).toFixed(0)}% confident
                                   </Badge>
                                   {message.metadata.actionable && (
                                     <Badge variant="outline" className="text-xs">

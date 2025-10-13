@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
+import { signIn } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -27,6 +28,7 @@ export default function RegisterPage() {
   const [acceptTerms, setAcceptTerms] = useState(false)
   const [acceptMarketing, setAcceptMarketing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
   const router = useRouter()
 
   const passwordStrength = (password: string) => {
@@ -59,30 +61,56 @@ export default function RegisterPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError("")
+    
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords don't match!")
+      setError("Passwords don't match!")
       return
     }
     if (!acceptTerms) {
-      alert("Please accept the terms and conditions")
+      setError("Please accept the terms and conditions")
+      return
+    }
+    if (passwordStrength(formData.password) < 50) {
+      setError("Please choose a stronger password")
       return
     }
 
     setIsLoading(true)
 
-    // Simulate registration process
-    setTimeout(() => {
+    try {
+      const result = await signIn("credentials", {
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        email: formData.email,
+        password: formData.password,
+        isRegister: "true",
+        redirect: false,
+      })
+
+      if (result?.error) {
+        setError(result.error)
+      } else {
+        router.push("/dashboard")
+      }
+    } catch (error) {
+      setError("An unexpected error occurred")
+    } finally {
       setIsLoading(false)
-      router.push("/dashboard")
-    }, 2000)
+    }
   }
 
-  const handleGoogleSignup = () => {
-    console.log("Google signup clicked")
+  const handleGoogleSignup = async () => {
+    setIsLoading(true)
+    try {
+      await signIn("google", { callbackUrl: "/dashboard" })
+    } catch (error) {
+      setError("Google signup failed")
+      setIsLoading(false)
+    }
   }
 
   const handleAppleSignup = () => {
-    console.log("Apple signup clicked")
+    console.log("Apple signup clicked - not implemented yet")
   }
 
   const currentPasswordStrength = passwordStrength(formData.password)

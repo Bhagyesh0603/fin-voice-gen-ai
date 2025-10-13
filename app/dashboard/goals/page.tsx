@@ -41,7 +41,7 @@ import {
 import { format, differenceInDays } from "date-fns"
 import { cn } from "@/lib/utils"
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts"
-import { useFinVoiceData } from "@/hooks/useFinVoiceData"
+import { useFinVoiceData } from "@/hooks/useAuthFinVoiceData"
 
 const goalCategories = [
   { name: "Emergency Fund", icon: Zap, color: "bg-red-500" },
@@ -58,7 +58,7 @@ const formatINR = (n: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n)
 
 export default function GoalsPage() {
-  const { goals, addGoal, updateGoal, deleteGoal, contributeToGoal } = useFinVoiceData()
+  const { goals, addGoal, updateGoal, deleteGoal, contributeToGoal, isLoading, error } = useFinVoiceData()
   const [isCreateGoalOpen, setIsCreateGoalOpen] = useState(false)
   const [contribGoalId, setContribGoalId] = useState<string | null>(null)
   const [contribAmount, setContribAmount] = useState<string>("")
@@ -129,6 +129,32 @@ export default function GoalsPage() {
   const totalCurrentAmount = goals.reduce((sum, g) => sum + g.currentAmount, 0)
   const totalMonthlyContribution = 0 // optional: store per-goal planned contribution separately if needed
   const overallProgress = totalTargetAmount ? (totalCurrentAmount / totalTargetAmount) * 100 : 0
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-in fade-in-0 duration-700">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading your goals...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6 animate-in fade-in-0 duration-700">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-red-600 font-medium">Error loading goals</p>
+            <p className="text-muted-foreground mt-2">{error}</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -308,7 +334,7 @@ export default function GoalsPage() {
               const categoryInfo = goalCategories.find((cat) => cat.name === goal.category)
               const IconComponent = categoryInfo?.icon || Target
               const progress = calculateProgress(goal.currentAmount, goal.targetAmount)
-              const timeToGoal = calculateTimeToGoal(goal.currentAmount, goal.targetAmount, goal.monthlyContribution)
+              const timeToGoal = calculateTimeToGoal(goal.currentAmount, goal.targetAmount, goal.monthlyContribution || 0)
               const status = getGoalStatus(goal.currentAmount, goal.targetAmount, new Date(goal.deadline))
               const StatusIcon = status.icon
 
@@ -373,7 +399,7 @@ export default function GoalsPage() {
                       </div>
                       <div>
                         <p className="text-muted-foreground">Monthly Contribution</p>
-                        <p className="font-medium">{formatINR(goal.monthlyContribution)}</p>
+                        <p className="font-medium">{formatINR(goal.monthlyContribution || 0)}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Remaining</p>
@@ -447,7 +473,7 @@ export default function GoalsPage() {
                   {goals.map((goal) => {
                     const categoryInfo = goalCategories.find((cat) => cat.name === goal.category)
                     const IconComponent = categoryInfo?.icon || Target
-                    const percentage = (goal.monthlyContribution / totalMonthlyContribution) * 100
+                    const percentage = ((goal.monthlyContribution || 0) / totalMonthlyContribution) * 100
 
                     return (
                       <div key={goal.id} className="flex items-center justify-between">
@@ -459,7 +485,7 @@ export default function GoalsPage() {
                         </div>
                         <div className="flex items-center space-x-3">
                           <div className="text-right">
-                            <div className="font-bold">{formatINR(goal.monthlyContribution)}</div>
+                            <div className="font-bold">{formatINR(goal.monthlyContribution || 0)}</div>
                             <div className="text-xs text-muted-foreground">{percentage.toFixed(1)}%</div>
                           </div>
                         </div>

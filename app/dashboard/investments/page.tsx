@@ -31,6 +31,7 @@ import {
   BarChart,
   Bar,
 } from "recharts"
+import { useFinVoiceData } from "@/hooks/useAuthFinVoiceData"
 
 const portfolioData = [
   { month: "Jan", value: 45000 },
@@ -131,10 +132,38 @@ const performanceData = [
 export default function InvestmentsPage() {
   const [showValues, setShowValues] = useState(true)
   const [selectedPeriod, setSelectedPeriod] = useState("1Y")
+  
+  const { investments, addInvestment, updateInvestment, deleteInvestment, isLoading, error } = useFinVoiceData()
 
-  const totalValue = holdings.reduce((sum, holding) => sum + holding.value, 0)
-  const totalGain = holdings.reduce((sum, holding) => sum + holding.change * holding.shares, 0)
-  const totalGainPercent = (totalGain / (totalValue - totalGain)) * 100
+  const totalValue = investments.reduce((sum, inv) => sum + inv.currentValue, 0)
+  const totalGain = investments.reduce((sum, inv) => sum + (inv.currentValue - inv.amount), 0)
+  const totalGainPercent = totalValue > 0 ? (totalGain / (totalValue - totalGain)) * 100 : 0
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-in fade-in-0 duration-700">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading your investments...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6 animate-in fade-in-0 duration-700">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-red-600 font-medium">Error loading investments</p>
+            <p className="text-muted-foreground mt-2">{error}</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -298,34 +327,39 @@ export default function InvestmentsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {holdings.map((holding, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <span className="font-bold text-primary text-sm">{holding.symbol}</span>
-                      </div>
-                      <div>
-                        <p className="font-medium">{holding.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {holding.shares} shares @ ${holding.currentPrice}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right space-y-1">
-                      <div className="font-bold">{showValues ? `$${holding.value.toLocaleString()}` : "••••••"}</div>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant={holding.changePercent >= 0 ? "default" : "destructive"} className="text-xs">
-                          {holding.changePercent >= 0 ? "+" : ""}
-                          {holding.changePercent.toFixed(2)}%
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">{holding.allocation}%</span>
-                      </div>
-                    </div>
+                {investments.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">No investments found. Add your first investment to get started.</p>
                   </div>
-                ))}
+                ) : (
+                  investments.map((investment, index) => (
+                    <div
+                      key={investment.id || index}
+                      className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                          <span className="font-bold text-primary text-sm">{investment.name.slice(0, 2).toUpperCase()}</span>
+                        </div>
+                        <div>
+                          <p className="font-medium">{investment.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {investment.type} • Initial: ₹{investment.amount.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right space-y-1">
+                        <div className="font-bold">{showValues ? `₹${investment.currentValue.toLocaleString()}` : "••••••"}</div>
+                        <div className="flex items-center space-x-2">
+                          <Badge variant={investment.returns >= 0 ? "default" : "destructive"} className="text-xs">
+                            {investment.returns >= 0 ? "+" : ""}
+                            {investment.returns.toFixed(2)}%
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>

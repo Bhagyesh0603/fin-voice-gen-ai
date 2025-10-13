@@ -93,7 +93,6 @@ export default function LandingPage() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold font-serif text-foreground">FinVoice</h1>
-                <p className="text-xs text-muted-foreground">AI-Powered Financial Assistant</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -111,10 +110,6 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section className="py-20 bg-gradient-to-br from-primary/5 via-background to-accent/5">
         <div className="container mx-auto px-4 text-center">
-          <Badge variant="secondary" className="mb-6 animate-pulse">
-            <Zap className="w-3 h-3 mr-1" />
-            AI-Powered Financial Management
-          </Badge>
 
           <h1 className="text-5xl md:text-7xl font-bold font-serif mb-6 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             Speak Your Way to
@@ -375,9 +370,6 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="border-t mt-8 pt-8 text-center text-muted-foreground">
-            <p>&copy; 2024 FinVoice. All rights reserved. Built with ❤️ for better financial futures.</p>
-          </div>
         </div>
       </footer>
     </div>

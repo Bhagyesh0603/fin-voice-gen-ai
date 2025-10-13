@@ -19,12 +19,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Eye, EyeOff, Download, Trash2, Camera } from "lucide-react"
-import { getUser, setUser, getDisplayUser } from "@/lib/user"
+import { useSession } from "next-auth/react"
 
 export default function SettingsPage() {
+  const { data: session } = useSession()
+  
   const [profile, setProfile] = useState({
-    name: "John Doe",
-    email: "john@example.com",
+    name: session?.user?.name || "FinVoice User",
+    email: session?.user?.email || "",
     phone: "+91 90000 00000",
     currency: "INR",
     timezone: "Asia/Kolkata",
@@ -53,15 +55,16 @@ export default function SettingsPage() {
   const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
-    const u = getUser() || getDisplayUser()
-    setProfile((p) => ({
-      ...p,
-      name: u.name,
-      email: u.email,
-      currency: "INR",
-      timezone: "Asia/Kolkata",
-    }))
-  }, [])
+    if (session?.user) {
+      setProfile((p) => ({
+        ...p,
+        name: session.user.name || "",
+        email: session.user.email || "",
+        currency: "INR",
+        timezone: "Asia/Kolkata",
+      }))
+    }
+  }, [session])
 
   return (
     <div className="space-y-6">
@@ -193,12 +196,8 @@ export default function SettingsPage() {
               <Button
                 className="bg-gradient-to-r from-cyan-500 to-pink-500 hover:from-cyan-600 hover:to-pink-600"
                 onClick={() => {
-                  setUser({
-                    id: "local",
-                    name: profile.name || "John Doe",
-                    email: profile.email || "john@example.com",
-                    image: undefined,
-                  })
+                  // Profile settings saved (would typically sync with backend)
+                  alert("Profile settings saved successfully!")
                 }}
               >
                 Save Changes

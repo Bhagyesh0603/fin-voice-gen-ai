@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Brain, Activity, AlertTriangle, CheckCircle, TrendingUp, Lightbulb, RefreshCw } from "lucide-react"
-import { useFinVoiceData } from "@/hooks/useFinVoiceData"
+import { useFinVoiceData } from "@/hooks/useAuthFinVoiceData"
 import { FinancialCoachingAgent, getFinancialHealthScore } from "@/lib/financialCoaching"
 
 export default function InsightsPage() {
@@ -15,7 +15,7 @@ export default function InsightsPage() {
   const [coachingAgent, setCoachingAgent] = useState<FinancialCoachingAgent | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
-  const { expenses, budgets, goals, totalBalance } = useFinVoiceData()
+  const { expenses, budgets, goals, totalBalance, isLoading, error } = useFinVoiceData()
 
   const generateInsights = () => {
     const financialData = {
@@ -39,7 +39,7 @@ export default function InsightsPage() {
       })),
       goals: goals.map((g) => ({
         id: g.id,
-        name: g.name,
+        name: g.name || "Untitled Goal",
         targetAmount: g.targetAmount,
         currentAmount: g.currentAmount,
         deadline: new Date(g.deadline),

@@ -17,13 +17,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { CreditCard, Plus, Eye, EyeOff, Lock, Unlock, Trash2, Edit, DollarSign, CheckCircle } from "lucide-react"
-import { useFinVoiceData } from "@/hooks/useFinVoiceData"
+import { useFinVoiceData } from "@/hooks/useAuthFinVoiceData"
 
 const formatINR = (n: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n)
 
 export default function CardsPage() {
-  const { cards, addCard, updateCard, deleteCard } = useFinVoiceData()
+  const { cards, addCard, updateCard, deleteCard, isLoading, error } = useFinVoiceData()
   const [showBalance, setShowBalance] = useState<{ [key: string]: boolean }>({})
   const [isAddCardOpen, setIsAddCardOpen] = useState(false)
   const [isEditCardOpen, setIsEditCardOpen] = useState<string | null>(null)
@@ -41,32 +41,24 @@ export default function CardsPage() {
     setShowBalance((prev) => ({ ...prev, [cardId]: !prev[cardId] }))
   }
 
-  const toggleCardStatus = (cardId: string) => {
-    const card = cards.find((c) => c.id === cardId)
-    if (!card) return
-    updateCard(cardId, { status: card.status === "active" ? "locked" : "active" })
+    const toggleCardStatus = (cardId: string) => {
+    const card = cards.find(c => c.id === cardId)
+    if (card) {
+      updateCard(cardId, { status: card.status === "active" ? "locked" : "active" })
+    }
   }
 
   const handleDeleteCard = (cardId: string) => deleteCard(cardId)
 
-  const handleAddCard = () => {
-    if (!newCard.name || !newCard.number) return
-    const lastFour = newCard.number.replace(/\s+/g, "").slice(-4)
+  const handleAddCard = (newCard: any) => {
     addCard({
       name: newCard.name,
-      type: newCard.type,
-      lastFour,
-      balance: 0,
-      limit: newCard.type === "Credit Card" ? Number(newCard.limit || 0) : null,
-      dueDate: null,
-      status: "active",
-      color:
-        newCard.type === "Credit Card"
-          ? "bg-gradient-to-r from-blue-600 to-purple-600"
-          : "bg-gradient-to-r from-green-600 to-teal-600",
-      rewards: null,
+      bank: newCard.bank,
+      last4: newCard.last4,
+      type: newCard.type === "Credit Card" ? "credit" : "debit",
+      limit: newCard.type === "Credit Card" ? Number(newCard.limit || 0) : undefined,
+      balance: Number(newCard.balance || 0),
     })
-    setNewCard({ name: "", type: "Credit Card", number: "", limit: "", expiry: "", cvv: "" })
     setIsAddCardOpen(false)
   }
 
@@ -86,11 +78,12 @@ export default function CardsPage() {
     return (balance / limit) * 100
   }
 
+  // Calculate metrics
   const totalCreditLimit = cards
-    .filter((c) => c.type === "Credit Card" && c.limit)
+    .filter((c) => c.type === "credit" && c.limit)
     .reduce((sum, c) => sum + (c.limit || 0), 0)
-  const totalCreditUsed = cards.filter((c) => c.type === "Credit Card").reduce((sum, c) => sum + c.balance, 0)
-  const totalAvailable = cards.filter((c) => c.type === "Debit Card").reduce((sum, c) => sum + c.balance, 0)
+  const totalCreditUsed = cards.filter((c) => c.type === "credit").reduce((sum, c) => sum + (c.balance || 0), 0)
+  const totalAvailable = cards.filter((c) => c.type === "debit").reduce((sum, c) => sum + (c.balance || 0), 0)
   const totalUtilPct = totalCreditLimit > 0 ? ((totalCreditUsed / totalCreditLimit) * 100).toFixed(1) : "0.0"
 
   return (
@@ -218,7 +211,7 @@ export default function CardsPage() {
             {cards.map((card) => (
               <Card key={card.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                 {/* Card Visual */}
-                <div className={`${card.color} p-6 text-white relative`}>
+                <div className={`${card.color || 'bg-gradient-to-r from-blue-600 to-purple-600'} p-6 text-white relative`}>
                   <div className="flex justify-between items-start mb-4">
                     <div>
                       <p className="text-sm opacity-80">{card.type}</p>
@@ -245,14 +238,14 @@ export default function CardsPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <p className="text-2xl font-mono tracking-wider">•••• •••• •••• {card.lastFour}</p>
+                    <p className="text-2xl font-mono tracking-wider">•••• •••• •••• {card.last4 || card.lastFour}</p>
                     <div className="flex justify-between items-center">
                       <div>
                         <p className="text-sm opacity-80">Balance</p>
-                        <p className="text-xl font-bold">{showBalance[card.id] ? formatINR(card.balance) : "••••••"}</p>
+                        <p className="text-xl font-bold">{showBalance[card.id] ? formatINR(card.balance || 0) : "••••••"}</p>
                       </div>
                       <Badge variant="secondary" className="bg-white/20 text-white">
-                        {card.status}
+                        {card.status || "active"}
                       </Badge>
                     </div>
                   </div>
@@ -265,10 +258,10 @@ export default function CardsPage() {
                       <div>
                         <div className="flex justify-between text-sm mb-2">
                           <span>Credit Utilization</span>
-                          <span>{getUtilizationPercentage(card.balance, card.limit).toFixed(1)}%</span>
+                          <span>{getUtilizationPercentage(card.balance || 0, card.limit || 1).toFixed(1)}%</span>
                         </div>
-                        <Progress value={getUtilizationPercentage(card.balance, card.limit)} className="h-2" />
-                        <p className="text-xs text-muted-foreground mt-1">{formatINR(card.limit - card.balance)}</p>
+                        <Progress value={getUtilizationPercentage(card.balance || 0, card.limit || 1)} className="h-2" />
+                        <p className="text-xs text-muted-foreground mt-1">{formatINR((card.limit || 0) - (card.balance || 0))}</p>
                       </div>
                     )}
 
@@ -317,10 +310,10 @@ export default function CardsPage() {
         <TabsContent value="credit" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {cards
-              .filter((card) => card.type === "Credit Card")
+              .filter((card) => card.type === "credit")
               .map((card) => (
                 <Card key={card.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  <div className={`${card.color} p-6 text-white relative`}>
+                  <div className={`${card.color || 'bg-gradient-to-r from-green-600 to-teal-600'} p-6 text-white relative`}>
                     <div className="flex justify-between items-start mb-4">
                       <div>
                         <p className="text-sm opacity-80">{card.type}</p>
@@ -339,16 +332,16 @@ export default function CardsPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <p className="text-2xl font-mono tracking-wider">•••• •••• •••• {card.lastFour}</p>
+                      <p className="text-2xl font-mono tracking-wider">•••• •••• •••• {card.last4 || card.lastFour}</p>
                       <div className="flex justify-between items-center">
                         <div>
                           <p className="text-sm opacity-80">Balance</p>
                           <p className="text-xl font-bold">
-                            {showBalance[card.id] ? formatINR(card.balance) : "••••••"}
+                            {showBalance[card.id] ? formatINR(card.balance || 0) : "••••••"}
                           </p>
                         </div>
                         <Badge variant="secondary" className="bg-white/20 text-white">
-                          {card.status}
+                          {card.status || "active"}
                         </Badge>
                       </div>
                     </div>
@@ -360,10 +353,10 @@ export default function CardsPage() {
                         <div>
                           <div className="flex justify-between text-sm mb-2">
                             <span>Credit Utilization</span>
-                            <span>{getUtilizationPercentage(card.balance, card.limit).toFixed(1)}%</span>
+                            <span>{getUtilizationPercentage(card.balance || 0, card.limit || 1).toFixed(1)}%</span>
                           </div>
-                          <Progress value={getUtilizationPercentage(card.balance, card.limit)} className="h-2" />
-                          <p className="text-xs text-muted-foreground mt-1">{formatINR(card.limit - card.balance)}</p>
+                          <Progress value={getUtilizationPercentage(card.balance || 0, card.limit || 1)} className="h-2" />
+                          <p className="text-xs text-muted-foreground mt-1">{formatINR((card.limit || 0) - (card.balance || 0))}</p>
                         </div>
                       )}
 
@@ -390,10 +383,10 @@ export default function CardsPage() {
         <TabsContent value="debit" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {cards
-              .filter((card) => card.type === "Debit Card")
+              .filter((card) => card.type === "debit")
               .map((card) => (
                 <Card key={card.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  <div className={`${card.color} p-6 text-white relative`}>
+                  <div className={`${card.color || 'bg-gradient-to-r from-purple-600 to-pink-600'} p-6 text-white relative`}>
                     <div className="flex justify-between items-start mb-4">
                       <div>
                         <p className="text-sm opacity-80">{card.type}</p>
@@ -412,16 +405,16 @@ export default function CardsPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <p className="text-2xl font-mono tracking-wider">•••• •••• •••• {card.lastFour}</p>
+                      <p className="text-2xl font-mono tracking-wider">•••• •••• •••• {card.last4 || card.lastFour}</p>
                       <div className="flex justify-between items-center">
                         <div>
                           <p className="text-sm opacity-80">Available Balance</p>
                           <p className="text-xl font-bold">
-                            {showBalance[card.id] ? formatINR(card.balance) : "••••••"}
+                            {showBalance[card.id] ? formatINR(card.balance || 0) : "••••••"}
                           </p>
                         </div>
                         <Badge variant="secondary" className="bg-white/20 text-white">
-                          {card.status}
+                          {card.status || "active"}
                         </Badge>
                       </div>
                     </div>
