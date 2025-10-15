@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "build": "next build --no-lint",
     "dev:turbo": "next dev --turbopack",
     "dev:memory": "node --max-old-space-size=4096 ./node_modules/.bin/next dev",
     "build": "next build",
