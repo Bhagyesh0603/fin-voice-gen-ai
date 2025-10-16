@@ -34,6 +34,7 @@ export interface IExpense extends Document {
   description: string
   date: string
   voiceNote?: string
+  receiptImage?: string
   createdAt: Date
 }
 
@@ -133,7 +134,8 @@ const ExpenseSchema = new Schema<IExpense>({
   category: { type: String, required: true },
   description: { type: String, required: true },
   date: { type: String, required: true },
-  voiceNote: { type: String }
+  voiceNote: { type: String },
+  receiptImage: { type: String }
 }, {
   timestamps: true
 })

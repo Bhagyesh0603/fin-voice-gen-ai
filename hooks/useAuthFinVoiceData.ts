@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useSession } from "next-auth/react"
 
 export interface Expense {
@@ -10,6 +10,7 @@ export interface Expense {
   description: string
   date: string
   voiceNote?: string
+  receiptImage?: string
   createdAt: string
 }
 
@@ -71,11 +72,21 @@ export function useFinVoiceData() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const isFetchingRef = useRef(false)
+  const mountedRef = useRef(true)
+
   const fetchData = async () => {
+    // Only fetch when authenticated
     if (status !== "authenticated") return
-    
-    setIsLoading(true)
-    setError(null)
+
+    // Avoid concurrent fetches
+    if (isFetchingRef.current) return
+    isFetchingRef.current = true
+
+    if (mountedRef.current) {
+      setIsLoading(true)
+      setError(null)
+    }
 
     try {
       const [expensesRes, budgetsRes, goalsRes, investmentsRes, cardsRes] = await Promise.all([
@@ -86,41 +97,68 @@ export function useFinVoiceData() {
         fetch("/api/cards")
       ])
 
-      if (expensesRes.ok) {
-        const expensesData = await expensesRes.json()
-        setExpenses(expensesData)
-      }
+      if (mountedRef.current) {
+        if (expensesRes.ok) {
+          const expensesData = await expensesRes.json()
+          setExpenses(expensesData)
+        }
 
-      if (budgetsRes.ok) {
-        const budgetsData = await budgetsRes.json()
-        setBudgets(budgetsData)
-      }
+        if (budgetsRes.ok) {
+          const budgetsData = await budgetsRes.json()
+          setBudgets(budgetsData)
+        }
 
-      if (goalsRes.ok) {
-        const goalsData = await goalsRes.json()
-        setGoals(goalsData)
-      }
+        if (goalsRes.ok) {
+          const goalsData = await goalsRes.json()
+          setGoals(goalsData)
+        }
 
-      if (investmentsRes.ok) {
-        const investmentsData = await investmentsRes.json()
-        setInvestments(investmentsData)
-      }
+        if (investmentsRes.ok) {
+          const investmentsData = await investmentsRes.json()
+          setInvestments(investmentsData)
+        }
 
-      if (cardsRes.ok) {
-        const cardsData = await cardsRes.json()
-        setCards(cardsData)
+        if (cardsRes.ok) {
+          const cardsData = await cardsRes.json()
+          setCards(cardsData)
+        }
       }
     } catch (error) {
       console.error("Error fetching data:", error)
-      setError("Failed to load data")
+      if (mountedRef.current) setError("Failed to load data")
     } finally {
-      setIsLoading(false)
+      isFetchingRef.current = false
+      if (mountedRef.current) setIsLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchData()
-  }, [session, status])
+    // Keep mounted ref accurate
+    mountedRef.current = true
+
+    // Only trigger when we are authenticated. Use session user email so changes to the same session
+    // object don't repeatedly refire fetches.
+    if (status === "authenticated") {
+      fetchData()
+    }
+
+    return () => {
+      mountedRef.current = false
+    }
+    // Only watch for authentication status and the user's stable identifier
+  }, [status, session?.user?.email])
+
+  // Memoize computed totals to avoid creating a new object every render which can cause
+  // downstream re-renders in consumers.
+  const totalBalance = useMemo(() => {
+    const income = expenses.filter(e => e.category === "income").reduce((sum, e) => sum + e.amount, 0)
+    const expenseSum = expenses.filter(e => e.category !== "income").reduce((sum, e) => sum + e.amount, 0)
+    return {
+      income,
+      expenses: expenseSum,
+      balance: income - expenseSum,
+    }
+  }, [expenses])
 
   const addExpense = async (expenseData: Omit<Expense, "id" | "createdAt">) => {
     try {
@@ -358,12 +396,6 @@ export function useFinVoiceData() {
     }
   }
 
-  const totalBalance = {
-    income: expenses.filter(e => e.category === "income").reduce((sum, e) => sum + e.amount, 0),
-    expenses: expenses.filter(e => e.category !== "income").reduce((sum, e) => sum + e.amount, 0),
-    balance: expenses.filter(e => e.category === "income").reduce((sum, e) => sum + e.amount, 0) - 
-             expenses.filter(e => e.category !== "income").reduce((sum, e) => sum + e.amount, 0)
-  }
 
   return {
     // Data

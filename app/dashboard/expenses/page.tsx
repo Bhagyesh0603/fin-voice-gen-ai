@@ -36,6 +36,7 @@ import {
   Calendar,
   Target,
   IndianRupee,
+  Image as ImageIcon,
 } from "lucide-react"
 import { format } from "date-fns"
 import {
@@ -87,6 +88,7 @@ export default function ExpensesPage() {
   const [editingExpense, setEditingExpense] = useState<any>(null)
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
+  const [viewingReceipt, setViewingReceipt] = useState<string | null>(null)
 
   const { expenses, addExpense, updateExpense, deleteExpense, isLoading, error } = useFinVoiceData()
 
@@ -423,6 +425,19 @@ export default function ExpensesPage() {
                                   </Badge>
                                 </>
                               )}
+                              {transaction.receiptImage && (
+                                <>
+                                  <span>•</span>
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-xs cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                                    onClick={() => setViewingReceipt(transaction.receiptImage || null)}
+                                  >
+                                    <ImageIcon className="w-3 h-3 mr-1" />
+                                    Receipt
+                                  </Badge>
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -586,6 +601,25 @@ export default function ExpensesPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Receipt Viewer Dialog */}
+      <Dialog open={!!viewingReceipt} onOpenChange={() => setViewingReceipt(null)}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Receipt Image</DialogTitle>
+            <DialogDescription>View uploaded receipt/bill image</DialogDescription>
+          </DialogHeader>
+          <div className="mt-4">
+            {viewingReceipt && (
+              <img
+                src={viewingReceipt}
+                alt="Receipt"
+                className="w-full h-auto rounded-lg border"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

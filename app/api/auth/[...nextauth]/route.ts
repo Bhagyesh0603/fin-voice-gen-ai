@@ -86,21 +86,26 @@ export const authOptions: NextAuthOptions = {
     })
   ],
   callbacks: {
-    async jwt({ token, user, account, profile }) {
+    async jwt({ token, user, account }) {
+      // Initial sign in - add user ID to token
+      if (user) {
+        token.id = user.id
+      }
+      
       // Handle Google OAuth user creation/update
-      if (account?.provider === 'google' && user) {
+      if (account?.provider === 'google') {
         try {
           await connectDB()
           
           // Check if user exists in our database
-          let dbUser = await User.findOne({ email: user.email })
+          let dbUser = await User.findOne({ email: token.email })
           
           if (!dbUser) {
             // Create new user
             dbUser = await User.create({
-              name: user.name || 'FinVoice User',
-              email: user.email!,
-              avatar: user.image,
+              name: token.name || 'FinVoice User',
+              email: token.email!,
+              avatar: token.picture,
               provider: account.provider,
               providerId: account.providerAccountId,
               preferences: {
@@ -114,33 +119,20 @@ export const authOptions: NextAuthOptions = {
                 financialGoals: []
               }
             })
-            console.log('✅ Created new Google user:', dbUser.email)
           } else {
             // Update existing user
             await User.findByIdAndUpdate(dbUser._id, {
-              name: user.name || dbUser.name,
-              avatar: user.image || dbUser.avatar,
+              name: token.name || dbUser.name,
+              avatar: token.picture || dbUser.avatar,
               lastActive: new Date()
             })
-            console.log('✅ Updated existing Google user:', dbUser.email)
           }
           
           // Store database user ID in token
           token.id = dbUser._id.toString()
-          token.dbUser = {
-            id: dbUser._id.toString(),
-            email: dbUser.email,
-            name: dbUser.name,
-            avatar: dbUser.avatar
-          }
         } catch (error) {
-          console.error('❌ Error in JWT callback for Google user:', error)
+          console.error('Error in JWT callback:', error)
         }
-      }
-      
-      // For credentials provider, user is already handled in authorize
-      if (user && !account) {
-        token.id = user.id
       }
       
       return token
@@ -149,19 +141,20 @@ export const authOptions: NextAuthOptions = {
       if (token?.id) {
         session.user.id = token.id as string
       }
-      
-      // If we have stored db user info, use it
-      if (token?.dbUser) {
-        session.user = {
-          ...session.user,
-          ...token.dbUser
-        }
+      if (token?.email) {
+        session.user.email = token.email
+      }
+      if (token?.name) {
+        session.user.name = token.name
+      }
+      if (token?.picture) {
+        session.user.image = token.picture
       }
       
       return session
     },
-    async signIn({ user, account, profile }) {
-      // Always allow sign in - user creation is handled in JWT callback
+    async signIn({ user, account }) {
+      // Always allow sign in
       return true
     }
   },
